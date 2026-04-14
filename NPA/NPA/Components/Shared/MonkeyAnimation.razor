@@ -1,0 +1,120 @@
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@if (_showMonkey)
+{
+    <div class="monkey-container" @key="_monkeyKey">
+        <svg class="monkey-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <!-- Body -->
+            <ellipse cx="60" cy="72" rx="28" ry="32" fill="#8B5E3C" />
+            <!-- Belly -->
+            <ellipse cx="60" cy="78" rx="18" ry="20" fill="#D2A679" />
+            <!-- Head -->
+            <circle cx="60" cy="36" r="24" fill="#8B5E3C" />
+            <!-- Face -->
+            <ellipse cx="60" cy="40" rx="17" ry="16" fill="#D2A679" />
+            <!-- Left ear -->
+            <circle cx="36" cy="30" r="10" fill="#8B5E3C" />
+            <circle cx="36" cy="30" r="6" fill="#D2A679" />
+            <!-- Right ear -->
+            <circle cx="84" cy="30" r="10" fill="#8B5E3C" />
+            <circle cx="84" cy="30" r="6" fill="#D2A679" />
+            <!-- Left eye -->
+            <ellipse cx="50" cy="36" rx="4" ry="5" fill="white" />
+            <circle cx="51" cy="36" r="2.5" fill="#1a1a2e" />
+            <circle cx="52" cy="35" r="1" fill="white" />
+            <!-- Right eye -->
+            <ellipse cx="70" cy="36" rx="4" ry="5" fill="white" />
+            <circle cx="71" cy="36" r="2.5" fill="#1a1a2e" />
+            <circle cx="72" cy="35" r="1" fill="white" />
+            <!-- Nose -->
+            <ellipse cx="57" cy="44" rx="2" ry="1.5" fill="#5a3825" />
+            <ellipse cx="63" cy="44" rx="2" ry="1.5" fill="#5a3825" />
+            <!-- Mouth smile -->
+            <path d="M52 49 Q60 56 68 49" stroke="#5a3825" stroke-width="1.5" fill="none" stroke-linecap="round" />
+            <!-- Left arm -->
+            <path d="M32 68 Q20 80 28 95" stroke="#8B5E3C" stroke-width="8" fill="none" stroke-linecap="round" />
+            <!-- Right arm (waving) -->
+            <path d="M88 68 Q100 55 95 40" stroke="#8B5E3C" stroke-width="8" fill="none" stroke-linecap="round" class="monkey-wave" />
+            <!-- Left leg -->
+            <path d="M45 98 Q40 110 35 112" stroke="#8B5E3C" stroke-width="7" fill="none" stroke-linecap="round" />
+            <!-- Right leg -->
+            <path d="M75 98 Q80 110 85 112" stroke="#8B5E3C" stroke-width="7" fill="none" stroke-linecap="round" />
+            <!-- Tail -->
+            <path d="M40 95 Q15 90 12 70 Q10 55 20 50" stroke="#8B5E3C" stroke-width="5" fill="none" stroke-linecap="round" class="monkey-tail" />
+        </svg>
+    </div>
+}
+
+<style>
+    .monkey-container {
+        position: fixed;
+        bottom: -10px;
+        z-index: 9999;
+        pointer-events: none;
+        animation: monkeyFloat 3s ease-in-out forwards;
+    }
+
+    .monkey-svg {
+        width: 90px;
+        height: 90px;
+        filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
+    }
+
+    .monkey-wave {
+        animation: wave 0.4s ease-in-out infinite alternate;
+        transform-origin: 88px 68px;
+    }
+
+    .monkey-tail {
+        animation: tailWag 0.6s ease-in-out infinite alternate;
+        transform-origin: 40px 95px;
+    }
+
+    @@keyframes monkeyFloat {
+        0%   { left: -100px; bottom: -10px; opacity: 1; transform: rotate(-5deg); }
+        20%  { bottom: 40px; transform: rotate(3deg); }
+        40%  { bottom: 15px; transform: rotate(-3deg); }
+        60%  { bottom: 35px; transform: rotate(2deg); }
+        80%  { bottom: 20px; opacity: 1; transform: rotate(-2deg); }
+        100% { left: calc(100vw + 100px); bottom: 30px; opacity: 0; transform: rotate(5deg); }
+    }
+
+    @@keyframes wave {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(-15deg); }
+    }
+
+    @@keyframes tailWag {
+        from { transform: rotate(0deg); }
+        to   { transform: rotate(8deg); }
+    }
+</style>
+
+@code {
+    private bool _showMonkey;
+    private int _monkeyKey;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        _monkeyKey++;
+        _showMonkey = true;
+        await InvokeAsync(StateHasChanged);
+
+        _ = Task.Delay(3200).ContinueWith(async _ =>
+        {
+            _showMonkey = false;
+            await InvokeAsync(StateHasChanged);
+        });
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

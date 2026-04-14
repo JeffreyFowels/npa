@@ -1,0 +1,45 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <AuthorizeView>
+                <Authorized>
+                    <span class="me-3 text-muted"><i class="bi bi-person-circle"></i> @context.User.Identity?.Name</span>
+                    <form method="post" action="/account/logout">
+                        <AntiforgeryToken />
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-box-arrow-right"></i> Sign Out
+                        </button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/account/login" class="btn btn-sm btn-primary">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign In
+                    </a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+
+        <footer class="npa-footer px-4">
+            <span>© @DateTime.Now.Year BUI — Nexus Productivity Assistant</span>
+        </footer>
+    </main>
+</div>
+
+<NPA.Components.Shared.MonkeyAnimation />
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

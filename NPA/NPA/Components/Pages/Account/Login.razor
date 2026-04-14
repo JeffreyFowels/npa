@@ -1,0 +1,98 @@
+@page "/account/login"
+@layout NPA.Components.Layout.LoginLayout
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager Navigation
+
+<PageTitle>Sign In — NPA</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <svg viewBox="0 0 48 48" width="56" height="56" xmlns="http://www.w3.org/2000/svg">
+                <rect width="48" height="48" rx="10" fill="#00b4d8"/>
+                <text x="24" y="32" text-anchor="middle" fill="white" font-size="24" font-weight="bold" font-family="Segoe UI, Arial">N</text>
+            </svg>
+            <h2 class="mt-3">Welcome to NPA</h2>
+            <p class="text-muted">Nexus Productivity Assistant</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger py-2">@_error</div>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="HandleLogin" FormName="login" class="npa-form">
+            <DataAnnotationsValidator />
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText @bind-Value="_model.Email" class="form-control" placeholder="admin@npa.local" />
+                <ValidationMessage For="() => _model.Email" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <InputText @bind-Value="_model.Password" type="password" class="form-control" placeholder="••••••••" />
+                <ValidationMessage For="() => _model.Password" />
+            </div>
+            <div class="mb-3 form-check">
+                <InputCheckbox @bind-Value="_model.RememberMe" class="form-check-input" />
+                <label class="form-check-label">Remember me</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2">
+                <i class="bi bi-box-arrow-in-right"></i> Sign In
+            </button>
+        </EditForm>
+
+        <div class="login-divider">or</div>
+
+        <a href="/account/entra-login" class="btn btn-outline-secondary w-100 py-2">
+            <i class="bi bi-microsoft"></i> Sign in with Entra ID
+        </a>
+
+        <p class="text-center text-muted mt-3 mb-0" style="font-size:0.8rem;">
+            © @DateTime.Now.Year BUI — Nexus Productivity Assistant
+        </p>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginModel _model { get; set; } = new();
+
+    private string? _error;
+
+    private async Task HandleLogin()
+    {
+        var user = await UserManager.FindByEmailAsync(_model.Email);
+        if (user is null)
+        {
+            _error = "Invalid email or password.";
+            return;
+        }
+
+        var result = await SignInManager.PasswordSignInAsync(user, _model.Password, _model.RememberMe, lockoutOnFailure: false);
+        if (result.Succeeded)
+        {
+            user.LastLoginAt = DateTime.UtcNow;
+            await UserManager.UpdateAsync(user);
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        else
+        {
+            _error = "Invalid email or password.";
+        }
+    }
+
+    private sealed class LoginModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+    }
+}

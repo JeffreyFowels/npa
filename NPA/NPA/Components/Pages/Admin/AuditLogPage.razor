@@ -1,0 +1,114 @@
+@page "/admin/audit"
+@attribute [StreamRendering]
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject AuditService AuditSvc
+
+<PageTitle>Audit Log — NPA Admin</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-clock-history"></i> Audit Log</h1>
+</div>
+
+<div class="npa-card mb-3">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Entity Type</label>
+            <select class="form-select" @bind="_filterEntity">
+                <option value="">All</option>
+                <option value="Project">Project</option>
+                <option value="Risk">Risk</option>
+                <option value="Issue">Issue</option>
+                <option value="User">User</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Records</label>
+            <select class="form-select" @bind="_take">
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="250">250</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-primary" @onclick="LoadLogs"><i class="bi bi-search"></i> Filter</button>
+        </div>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else if (!_logs.Any())
+{
+    <div class="npa-card text-center py-5">
+        <i class="bi bi-journal-x" style="font-size:3rem; color:var(--npa-text-muted);"></i>
+        <p class="mt-2 text-muted">No audit logs found.</p>
+    </div>
+}
+else
+{
+    <div class="npa-card">
+        <div class="table-responsive">
+            <table class="npa-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Entity</th>
+                        <th>Entity ID</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in _logs)
+                    {
+                        <tr>
+                            <td>@log.Timestamp.ToString("dd MMM yyyy HH:mm:ss")</td>
+                            <td>@log.UserName</td>
+                            <td>
+                                <span class="badge bg-@(log.Action == "Deleted" ? "danger" : log.Action == "Created" ? "success" : "info")">
+                                    @log.Action
+                                </span>
+                            </td>
+                            <td>@log.EntityType</td>
+                            <td><code>@log.EntityId</code></td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(log.NewValues))
+                                {
+                                    <small class="text-muted" style="max-width:300px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                                           title="@log.NewValues">
+                                        @log.NewValues
+                                    </small>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Data.Models.AuditLog> _logs = [];
+    private bool _loading = true;
+    private string _filterEntity = "";
+    private int _take = 50;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        _loading = true;
+        _logs = await AuditSvc.GetLogsAsync(
+            string.IsNullOrEmpty(_filterEntity) ? null : _filterEntity,
+            take: _take);
+        _loading = false;
+    }
+}

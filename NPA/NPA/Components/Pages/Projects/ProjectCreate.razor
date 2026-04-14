@@ -1,0 +1,102 @@
+@page "/projects/create"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@attribute [Authorize(Roles = "Admin,ProjectManager")]
+@inject ProjectService ProjectSvc
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>New Project — NPA</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle"></i> New Project</h1>
+    <a href="/projects" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div class="npa-card" style="max-width:720px;">
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="createProject" class="npa-form">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-3">
+            <label class="form-label">Project Name *</label>
+            <InputText @bind-Value="_model.Name" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <InputTextArea @bind-Value="_model.Description" class="form-control" rows="3" />
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Status</label>
+                <InputSelect @bind-Value="_model.Status" class="form-select">
+                    @foreach (var s in Enum.GetValues<ProjectStatus>())
+                    {
+                        <option value="@s">@s</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Priority</label>
+                <InputSelect @bind-Value="_model.Priority" class="form-select">
+                    @foreach (var p in Enum.GetValues<Priority>())
+                    {
+                        <option value="@p">@p</option>
+                    }
+                </InputSelect>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Start Date</label>
+                <InputDate @bind-Value="_model.StartDate" class="form-control" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">End Date</label>
+                <InputDate @bind-Value="_model.EndDate" class="form-control" />
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Create Project</button>
+    </EditForm>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private ProjectModel _model { get; set; } = new();
+
+    private async Task HandleSubmit()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var appUser = await UserManager.FindByNameAsync(authState.User.Identity?.Name ?? "");
+        if (appUser is null) return;
+
+        var project = new Project
+        {
+            Name = _model.Name,
+            Description = _model.Description ?? "",
+            Status = _model.Status,
+            Priority = _model.Priority,
+            StartDate = _model.StartDate,
+            EndDate = _model.EndDate
+        };
+
+        await ProjectSvc.CreateAsync(project, appUser.Id, appUser.FullName);
+        Navigation.NavigateTo($"/projects/{project.Id}");
+    }
+
+    private sealed class ProjectModel
+    {
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public ProjectStatus Status { get; set; } = ProjectStatus.NotStarted;
+        public Priority Priority { get; set; } = Priority.Medium;
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+    }
+}

@@ -1,0 +1,206 @@
+@page "/projects/{Id:int}"
+@attribute [StreamRendering]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@attribute [Authorize]
+@inject ProjectService ProjectSvc
+@inject RiskService RiskSvc
+@inject IssueService IssueSvc
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>@(_project?.Name ?? "Project") — NPA</PageTitle>
+
+@if (_project is null)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else
+{
+    <div class="page-header">
+        <div>
+            <h1><i class="bi bi-kanban"></i> @_project.Name</h1>
+            <span class="badge-status @GetStatusBadge(_project.Status)">@FormatEnum(_project.Status)</span>
+            <span class="ms-2 priority-dot @_project.Priority.ToString().ToLower()"></span><small>@_project.Priority priority</small>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/projects" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+            <AuthorizeView Roles="Admin,ProjectManager">
+                <Authorized>
+                    <a href="/projects/@Id/edit" class="btn btn-primary"><i class="bi bi-pencil"></i> Edit</a>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
+
+    <!-- Project Info -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="npa-card">
+                <h6>Description</h6>
+                <p class="text-muted">@(string.IsNullOrEmpty(_project.Description) ? "No description." : _project.Description)</p>
+                <div class="row g-3 mt-2">
+                    <div class="col-sm-4"><strong>Progress</strong><div class="npa-progress mt-1"><div class="npa-progress-bar" style="width:@(_project.PercentComplete)%"></div></div><small>@_project.PercentComplete%</small></div>
+                    <div class="col-sm-4"><strong>Start</strong><br/><span class="text-muted">@(_project.StartDate?.ToString("dd MMM yyyy") ?? "—")</span></div>
+                    <div class="col-sm-4"><strong>End</strong><br/><span class="text-muted">@(_project.EndDate?.ToString("dd MMM yyyy") ?? "—")</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="npa-card">
+                <h6>Team Members</h6>
+                @if (!_project.Assignments.Any())
+                {
+                    <p class="text-muted mb-0">No members assigned.</p>
+                }
+                else
+                {
+                    @foreach (var a in _project.Assignments)
+                    {
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="bi bi-person-circle text-muted"></i>
+                            <span>@(a.User?.FullName ?? a.UserId)</span>
+                            @if (_canManage)
+                            {
+                                <button class="btn btn-sm btn-outline-danger ms-auto" @onclick="() => Unassign(a.UserId)"><i class="bi bi-x"></i></button>
+                            }
+                        </div>
+                    }
+                }
+                @if (_canManage)
+                {
+                    <hr/>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" @bind="_selectedUserId">
+                            <option value="">Select user...</option>
+                            @foreach (var u in _allUsers.Where(u => !_project.Assignments.Any(a => a.UserId == u.Id)))
+                            {
+                                <option value="@u.Id">@u.FullName (@u.Email)</option>
+                            }
+                        </select>
+                        <button class="btn btn-sm btn-primary" @onclick="AssignUser" disabled="@string.IsNullOrEmpty(_selectedUserId)"><i class="bi bi-plus"></i></button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Risks -->
+    <div class="npa-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-shield-exclamation"></i> Risks (@_risks.Count)</h6>
+            <AuthorizeView Roles="Admin,ProjectManager">
+                <Authorized>
+                    <a href="/risks/create?projectId=@Id" class="btn btn-sm btn-outline-warning"><i class="bi bi-plus-lg"></i> Add Risk</a>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+        @if (_risks.Any())
+        {
+            <div class="table-responsive">
+                <table class="npa-table">
+                    <thead><tr><th>Title</th><th>Likelihood</th><th>Impact</th><th>Score</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var r in _risks)
+                        {
+                            <tr>
+                                <td>@r.Title</td>
+                                <td>@r.Likelihood</td>
+                                <td>@r.Impact</td>
+                                <td><span class="badge-status @GetHeatBadge(r.RiskScore)">@r.RiskScore</span></td>
+                                <td><span class="badge-status @GetRiskStatusBadge(r.Status)">@r.Status</span></td>
+                                <td><a href="/risks/@r.Id/edit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else { <p class="text-muted mb-0">No risks recorded.</p> }
+    </div>
+
+    <!-- Issues -->
+    <div class="npa-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-bug"></i> Issues (@_issues.Count)</h6>
+            <AuthorizeView Roles="Admin,ProjectManager">
+                <Authorized>
+                    <a href="/issues/create?projectId=@Id" class="btn btn-sm btn-outline-danger"><i class="bi bi-plus-lg"></i> Add Issue</a>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+        @if (_issues.Any())
+        {
+            <div class="table-responsive">
+                <table class="npa-table">
+                    <thead><tr><th>Title</th><th>Severity</th><th>Priority</th><th>Status</th><th>Assigned To</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var i in _issues)
+                        {
+                            <tr>
+                                <td>@i.Title</td>
+                                <td><span class="badge-status @GetSeverityBadge(i.Severity)">@i.Severity</span></td>
+                                <td><span class="priority-dot @i.Priority.ToString().ToLower()"></span>@i.Priority</td>
+                                <td><span class="badge-status @GetIssueBadge(i.Status)">@FormatEnum(i.Status)</span></td>
+                                <td>@(i.AssignedTo?.FullName ?? "—")</td>
+                                <td><a href="/issues/@i.Id/edit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else { <p class="text-muted mb-0">No issues recorded.</p> }
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Project? _project;
+    private List<Risk> _risks = [];
+    private List<Issue> _issues = [];
+    private List<ApplicationUser> _allUsers = [];
+    private string _selectedUserId = "";
+    private bool _canManage;
+    private ApplicationUser? _currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _project = await ProjectSvc.GetByIdAsync(Id);
+        if (_project is null) return;
+
+        _risks = await RiskSvc.GetByProjectAsync(Id);
+        _issues = await IssueSvc.GetByProjectAsync(Id);
+
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        _currentUser = await UserManager.FindByNameAsync(authState.User.Identity?.Name ?? "");
+        _canManage = _currentUser is not null && (_currentUser.Role == AppRole.Admin || _currentUser.Role == AppRole.ProjectManager);
+
+        if (_canManage)
+            _allUsers = UserManager.Users.Where(u => !u.IsDeleted).ToList();
+    }
+
+    private async Task AssignUser()
+    {
+        if (string.IsNullOrEmpty(_selectedUserId) || _currentUser is null) return;
+        await ProjectSvc.AssignUserAsync(Id, _selectedUserId, _currentUser.Id, _currentUser.FullName);
+        _project = await ProjectSvc.GetByIdAsync(Id);
+        _selectedUserId = "";
+    }
+
+    private async Task Unassign(string userId)
+    {
+        if (_currentUser is null) return;
+        await ProjectSvc.UnassignUserAsync(Id, userId, _currentUser.Id, _currentUser.FullName);
+        _project = await ProjectSvc.GetByIdAsync(Id);
+    }
+
+    private static string GetStatusBadge(ProjectStatus s) => s switch { ProjectStatus.NotStarted => "badge-not-started", ProjectStatus.InProgress => "badge-in-progress", ProjectStatus.OnHold => "badge-on-hold", ProjectStatus.Completed => "badge-completed", ProjectStatus.Cancelled => "badge-cancelled", _ => "" };
+    private static string GetRiskStatusBadge(RiskStatus s) => s switch { RiskStatus.Identified => "badge-identified", RiskStatus.Assessing => "badge-assessing", RiskStatus.Mitigating => "badge-mitigating", RiskStatus.Resolved => "badge-resolved", RiskStatus.Accepted => "badge-accepted", _ => "" };
+    private static string GetIssueBadge(IssueStatus s) => s switch { IssueStatus.Open => "badge-open", IssueStatus.InProgress => "badge-in-progress", IssueStatus.Resolved => "badge-resolved", IssueStatus.Closed => "badge-closed", _ => "" };
+    private static string GetSeverityBadge(IssueSeverity s) => s switch { IssueSeverity.Low => "badge-low", IssueSeverity.Medium => "badge-medium", IssueSeverity.High => "badge-high", IssueSeverity.Critical => "badge-critical", _ => "" };
+    private static string GetHeatBadge(int score) => score switch { <= 4 => "badge-low", <= 8 => "badge-medium", <= 12 => "badge-high", _ => "badge-critical" };
+    private static string FormatEnum<T>(T v) where T : Enum => System.Text.RegularExpressions.Regex.Replace(v.ToString(), "(\\B[A-Z])", " $1");
+}

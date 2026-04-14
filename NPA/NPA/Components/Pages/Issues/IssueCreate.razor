@@ -1,0 +1,137 @@
+@page "/issues/create"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@attribute [Authorize(Roles = "Admin,ProjectManager")]
+@inject IssueService IssueSvc
+@inject ProjectService ProjectSvc
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>New Issue — NPA</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle"></i> New Issue</h1>
+    <a href="@(_projectId.HasValue ? $"/projects/{_projectId}" : "/issues")" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div class="npa-card" style="max-width:720px;">
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="createIssue" class="npa-form">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-3">
+            <label class="form-label">Title *</label>
+            <InputText @bind-Value="_model.Title" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <InputTextArea @bind-Value="_model.Description" class="form-control" rows="3" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Project *</label>
+            <InputSelect @bind-Value="_model.ProjectId" class="form-select">
+                <option value="0">— Select Project —</option>
+                @foreach (var p in _projects)
+                {
+                    <option value="@p.Id">@p.Name</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Status</label>
+                <InputSelect @bind-Value="_model.Status" class="form-select">
+                    @foreach (var s in Enum.GetValues<IssueStatus>())
+                    { <option value="@s">@s</option> }
+                </InputSelect>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Severity</label>
+                <InputSelect @bind-Value="_model.Severity" class="form-select">
+                    @foreach (var s in Enum.GetValues<IssueSeverity>())
+                    { <option value="@s">@s</option> }
+                </InputSelect>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Priority</label>
+                <InputSelect @bind-Value="_model.Priority" class="form-select">
+                    @foreach (var p in Enum.GetValues<Priority>())
+                    { <option value="@p">@p</option> }
+                </InputSelect>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Assign To</label>
+            <InputSelect @bind-Value="_model.AssignedToId" class="form-select">
+                <option value="">— Unassigned —</option>
+                @foreach (var u in _users)
+                {
+                    <option value="@u.Id">@u.FullName (@u.Email)</option>
+                }
+            </InputSelect>
+        </div>
+
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Create Issue</button>
+    </EditForm>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int? projectId { get; set; }
+
+    [SupplyParameterFromForm]
+    private IssueModel _model { get; set; } = new();
+
+    private int? _projectId;
+    private List<Project> _projects = [];
+    private List<ApplicationUser> _users = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _projectId = projectId;
+        _projects = await ProjectSvc.GetAllAsync();
+        _users = await UserManager.Users.Where(u => !u.IsDeleted).OrderBy(u => u.FullName).ToListAsync();
+        if (_projectId.HasValue)
+            _model.ProjectId = _projectId.Value;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_model.ProjectId == 0) return;
+
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var appUser = await UserManager.FindByNameAsync(authState.User.Identity?.Name ?? "");
+        if (appUser is null) return;
+
+        var issue = new Issue
+        {
+            ProjectId = _model.ProjectId,
+            Title = _model.Title,
+            Description = _model.Description ?? "",
+            Status = _model.Status,
+            Severity = _model.Severity,
+            Priority = _model.Priority,
+            AssignedToId = string.IsNullOrEmpty(_model.AssignedToId) ? null : _model.AssignedToId
+        };
+
+        await IssueSvc.CreateAsync(issue, appUser.Id, appUser.FullName);
+        Navigation.NavigateTo($"/projects/{issue.ProjectId}");
+    }
+
+    private sealed class IssueModel
+    {
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string Title { get; set; } = "";
+        public string? Description { get; set; }
+        public int ProjectId { get; set; }
+        public IssueStatus Status { get; set; } = IssueStatus.Open;
+        public IssueSeverity Severity { get; set; } = IssueSeverity.Medium;
+        public Priority Priority { get; set; } = Priority.Medium;
+        public string? AssignedToId { get; set; }
+    }
+}

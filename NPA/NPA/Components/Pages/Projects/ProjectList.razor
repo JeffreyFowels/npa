@@ -1,0 +1,110 @@
+@page "/projects"
+@attribute [StreamRendering]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@attribute [Authorize]
+@inject ProjectService ProjectSvc
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Projects — NPA</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-kanban"></i> Projects</h1>
+    <AuthorizeView Roles="Admin,ProjectManager">
+        <Authorized>
+            <a href="/projects/create" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Project</a>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else if (!_projects.Any())
+{
+    <div class="npa-card text-center py-5">
+        <i class="bi bi-inbox" style="font-size:3rem; color:var(--npa-text-muted);"></i>
+        <p class="mt-2 text-muted">No projects found.</p>
+    </div>
+}
+else
+{
+    <div class="npa-card">
+        <div class="table-responsive">
+            <table class="npa-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Progress</th>
+                        <th>Assigned</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in _projects)
+                    {
+                        <tr>
+                            <td><a href="/projects/@p.Id" class="fw-semibold">@p.Name</a></td>
+                            <td><span class="badge-status @GetStatusBadge(p.Status)">@FormatEnum(p.Status)</span></td>
+                            <td><span class="priority-dot @p.Priority.ToString().ToLower()"></span>@p.Priority</td>
+                            <td style="min-width:120px;">
+                                <div class="npa-progress"><div class="npa-progress-bar" style="width:@(p.PercentComplete)%"></div></div>
+                                <small class="text-muted">@p.PercentComplete%</small>
+                            </td>
+                            <td>@p.Assignments.Count</td>
+                            <td>@(p.StartDate?.ToString("dd MMM yyyy") ?? "—")</td>
+                            <td>@(p.EndDate?.ToString("dd MMM yyyy") ?? "—")</td>
+                            <td>
+                                <a href="/projects/@p.Id" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>
+                                <AuthorizeView Roles="Admin,ProjectManager">
+                                    <Authorized>
+                                        <a href="/projects/@p.Id/edit" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Project> _projects = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var appUser = await UserManager.FindByNameAsync(user.Identity?.Name ?? "");
+
+        if (appUser is not null && (appUser.Role == AppRole.Admin || appUser.Role == AppRole.ProjectManager))
+            _projects = await ProjectSvc.GetAllAsync();
+        else if (appUser is not null)
+            _projects = await ProjectSvc.GetByUserAsync(appUser.Id);
+
+        _loading = false;
+    }
+
+    private static string GetStatusBadge(ProjectStatus s) => s switch
+    {
+        ProjectStatus.NotStarted => "badge-not-started",
+        ProjectStatus.InProgress => "badge-in-progress",
+        ProjectStatus.OnHold => "badge-on-hold",
+        ProjectStatus.Completed => "badge-completed",
+        ProjectStatus.Cancelled => "badge-cancelled",
+        _ => ""
+    };
+
+    private static string FormatEnum<T>(T v) where T : Enum =>
+        System.Text.RegularExpressions.Regex.Replace(v.ToString(), "(\\B[A-Z])", " $1");
+}

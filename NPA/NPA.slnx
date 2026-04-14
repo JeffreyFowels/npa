@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="NPA.Client/NPA.Client.csproj" />
+  <Project Path="NPA/NPA.csproj" />
+</Solution>

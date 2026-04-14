@@ -1,0 +1,130 @@
+@page "/risks/create"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@attribute [Authorize(Roles = "Admin,ProjectManager")]
+@inject RiskService RiskSvc
+@inject ProjectService ProjectSvc
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>New Risk — NPA</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle"></i> New Risk</h1>
+    <a href="@(_projectId.HasValue ? $"/projects/{_projectId}" : "/risks")" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<div class="npa-card" style="max-width:720px;">
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="createRisk" class="npa-form">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-3">
+            <label class="form-label">Title *</label>
+            <InputText @bind-Value="_model.Title" class="form-control" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <InputTextArea @bind-Value="_model.Description" class="form-control" rows="3" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Project *</label>
+            <InputSelect @bind-Value="_model.ProjectId" class="form-select">
+                <option value="0">— Select Project —</option>
+                @foreach (var p in _projects)
+                {
+                    <option value="@p.Id">@p.Name</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Status</label>
+                <InputSelect @bind-Value="_model.Status" class="form-select">
+                    @foreach (var s in Enum.GetValues<RiskStatus>())
+                    { <option value="@s">@s</option> }
+                </InputSelect>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Likelihood</label>
+                <InputSelect @bind-Value="_model.Likelihood" class="form-select">
+                    @foreach (var l in Enum.GetValues<RiskLikelihood>())
+                    { <option value="@l">@l</option> }
+                </InputSelect>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Impact</label>
+                <InputSelect @bind-Value="_model.Impact" class="form-select">
+                    @foreach (var i in Enum.GetValues<RiskImpact>())
+                    { <option value="@i">@i</option> }
+                </InputSelect>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Mitigation Plan</label>
+            <InputTextArea @bind-Value="_model.MitigationPlan" class="form-control" rows="3" />
+        </div>
+
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Create Risk</button>
+    </EditForm>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int? projectId { get; set; }
+
+    [SupplyParameterFromForm]
+    private RiskModel _model { get; set; } = new();
+
+    private int? _projectId;
+    private List<Project> _projects = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _projectId = projectId;
+        _projects = await ProjectSvc.GetAllAsync();
+        if (_projectId.HasValue)
+            _model.ProjectId = _projectId.Value;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_model.ProjectId == 0) return;
+
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var appUser = await UserManager.FindByNameAsync(authState.User.Identity?.Name ?? "");
+        if (appUser is null) return;
+
+        var risk = new Risk
+        {
+            ProjectId = _model.ProjectId,
+            Title = _model.Title,
+            Description = _model.Description ?? "",
+            Status = _model.Status,
+            Likelihood = _model.Likelihood,
+            Impact = _model.Impact,
+            MitigationPlan = _model.MitigationPlan ?? "",
+            OwnerId = appUser.Id
+        };
+
+        await RiskSvc.CreateAsync(risk, appUser.Id, appUser.FullName);
+        Navigation.NavigateTo($"/projects/{risk.ProjectId}");
+    }
+
+    private sealed class RiskModel
+    {
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string Title { get; set; } = "";
+        public string? Description { get; set; }
+        public int ProjectId { get; set; }
+        public RiskStatus Status { get; set; } = RiskStatus.Identified;
+        public RiskLikelihood Likelihood { get; set; } = RiskLikelihood.Possible;
+        public RiskImpact Impact { get; set; } = RiskImpact.Moderate;
+        public string? MitigationPlan { get; set; }
+    }
+}

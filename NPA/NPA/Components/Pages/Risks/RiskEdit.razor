@@ -1,0 +1,108 @@
+@page "/risks/{Id:int}/edit"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@attribute [Authorize(Roles = "Admin,ProjectManager")]
+@inject RiskService RiskSvc
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Risk — NPA</PageTitle>
+
+@if (_risk is null)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-pencil"></i> Edit Risk</h1>
+        <a href="/projects/@_risk.ProjectId" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back to Project</a>
+    </div>
+
+    <div class="npa-card" style="max-width:720px;">
+        <EditForm Model="_risk" OnValidSubmit="HandleSubmit" FormName="editRisk" class="npa-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="mb-3">
+                <label class="form-label">Title *</label>
+                <InputText @bind-Value="_risk.Title" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <InputTextArea @bind-Value="_risk.Description" class="form-control" rows="3" />
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <InputSelect @bind-Value="_risk.Status" class="form-select">
+                        @foreach (var s in Enum.GetValues<RiskStatus>())
+                        { <option value="@s">@s</option> }
+                    </InputSelect>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Likelihood</label>
+                    <InputSelect @bind-Value="_risk.Likelihood" class="form-select">
+                        @foreach (var l in Enum.GetValues<RiskLikelihood>())
+                        { <option value="@l">@l</option> }
+                    </InputSelect>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Impact</label>
+                    <InputSelect @bind-Value="_risk.Impact" class="form-select">
+                        @foreach (var i in Enum.GetValues<RiskImpact>())
+                        { <option value="@i">@i</option> }
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Mitigation Plan</label>
+                <InputTextArea @bind-Value="_risk.MitigationPlan" class="form-control" rows="3" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Changes</button>
+                <button type="button" class="btn btn-outline-danger" @onclick="HandleDelete"><i class="bi bi-trash"></i> Delete</button>
+            </div>
+        </EditForm>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Risk? _risk { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _risk ??= await RiskSvc.GetByIdAsync(Id);
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_risk is null) return;
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var appUser = await UserManager.FindByNameAsync(authState.User.Identity?.Name ?? "");
+        if (appUser is null) return;
+
+        await RiskSvc.UpdateAsync(_risk, appUser.Id, appUser.FullName);
+        Navigation.NavigateTo($"/projects/{_risk.ProjectId}");
+    }
+
+    private async Task HandleDelete()
+    {
+        if (_risk is null) return;
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var appUser = await UserManager.FindByNameAsync(authState.User.Identity?.Name ?? "");
+        if (appUser is null) return;
+
+        var projectId = _risk.ProjectId;
+        await RiskSvc.DeleteAsync(Id, appUser.Id, appUser.FullName);
+        Navigation.NavigateTo($"/projects/{projectId}");
+    }
+}

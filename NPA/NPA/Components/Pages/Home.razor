@@ -1,0 +1,226 @@
+﻿@page "/"
+@attribute [StreamRendering]
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@inject ProjectService ProjectSvc
+@inject RiskService RiskSvc
+@inject IssueService IssueSvc
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+
+<PageTitle>Dashboard — NPA</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-speedometer2"></i> Dashboard</h1>
+    <span class="text-muted">Welcome back, @_userName</span>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Loading dashboard...</p>
+    </div>
+}
+else
+{
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="npa-card npa-card-accent metric-card">
+                <div class="metric-icon" style="color:var(--npa-accent);"><i class="bi bi-kanban"></i></div>
+                <div class="metric-value">@_projects.Count</div>
+                <div class="metric-label">Total Projects</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="npa-card metric-card" style="border-top:3px solid var(--npa-success);">
+                <div class="metric-icon" style="color:var(--npa-success);"><i class="bi bi-check-circle"></i></div>
+                <div class="metric-value">@_projects.Count(p => p.Status == ProjectStatus.Completed)</div>
+                <div class="metric-label">Completed</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="npa-card metric-card" style="border-top:3px solid var(--npa-warning);">
+                <div class="metric-icon" style="color:var(--npa-warning);"><i class="bi bi-shield-exclamation"></i></div>
+                <div class="metric-value">@_risks.Count(r => r.Status != RiskStatus.Resolved)</div>
+                <div class="metric-label">Active Risks</div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="npa-card metric-card" style="border-top:3px solid var(--npa-danger);">
+                <div class="metric-icon" style="color:var(--npa-danger);"><i class="bi bi-bug"></i></div>
+                <div class="metric-value">@_issues.Count(i => i.Status == IssueStatus.Open)</div>
+                <div class="metric-label">Open Issues</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <!-- Project Status Distribution -->
+        <div class="col-lg-6">
+            <div class="npa-card">
+                <h6 class="mb-3"><i class="bi bi-pie-chart"></i> Project Status Distribution</h6>
+                <div class="d-flex flex-wrap gap-3">
+                    @foreach (var group in _projects.GroupBy(p => p.Status))
+                    {
+                        var pct = _projects.Count > 0 ? (int)(group.Count() * 100.0 / _projects.Count) : 0;
+                        <div class="text-center">
+                            <div class="position-relative d-inline-block" style="width:70px;height:70px;">
+                                <svg viewBox="0 0 36 36" style="width:70px;height:70px;transform:rotate(-90deg);">
+                                    <circle cx="18" cy="18" r="14" fill="none" stroke="#e2e8f0" stroke-width="4" />
+                                    <circle cx="18" cy="18" r="14" fill="none" stroke="@GetStatusColor(group.Key)" stroke-width="4"
+                                            stroke-dasharray="@(pct * 0.88) 88" stroke-linecap="round" />
+                                </svg>
+                                <span class="position-absolute top-50 start-50 translate-middle fw-bold" style="font-size:0.75rem;">@pct%</span>
+                            </div>
+                            <div class="mt-1" style="font-size:0.75rem;">@FormatEnum(group.Key) (@group.Count())</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Heat Map -->
+        <div class="col-lg-6">
+            <div class="npa-card">
+                <h6 class="mb-3"><i class="bi bi-grid-3x3"></i> Risk Heat Map (Likelihood × Impact)</h6>
+                <div class="table-responsive">
+                    <table class="text-center" style="border-spacing:4px; border-collapse:separate;">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                @foreach (RiskImpact impact in Enum.GetValues<RiskImpact>())
+                                {
+                                    <th style="font-size:0.7rem; color:var(--npa-text-muted);">@impact</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (RiskLikelihood likelihood in Enum.GetValues<RiskLikelihood>().Reverse())
+                            {
+                                <tr>
+                                    <td style="font-size:0.7rem; color:var(--npa-text-muted); text-align:right; padding-right:6px;">@likelihood</td>
+                                    @foreach (RiskImpact impact in Enum.GetValues<RiskImpact>())
+                                    {
+                                        var count = _risks.Count(r => r.Likelihood == likelihood && r.Impact == impact);
+                                        var score = (int)likelihood * (int)impact;
+                                        <td>
+                                            <div class="heat-cell @GetHeatClass(score)">@count</div>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Projects -->
+    <div class="npa-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><i class="bi bi-clock-history"></i> Recent Projects</h6>
+            <a href="/projects" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="table-responsive">
+            <table class="npa-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Progress</th>
+                        <th>Risks</th>
+                        <th>Issues</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in _projects.Take(5))
+                    {
+                        <tr>
+                            <td><a href="/projects/@p.Id">@p.Name</a></td>
+                            <td><span class="badge-status @GetStatusBadge(p.Status)">@FormatEnum(p.Status)</span></td>
+                            <td><span class="priority-dot @p.Priority.ToString().ToLower()"></span>@p.Priority</td>
+                            <td style="min-width:120px;">
+                                <div class="npa-progress"><div class="npa-progress-bar" style="width:@(p.PercentComplete)%"></div></div>
+                                <small class="text-muted">@p.PercentComplete%</small>
+                            </td>
+                            <td>@p.Risks.Count</td>
+                            <td>@p.Issues.Count(i => i.Status == IssueStatus.Open)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Project> _projects = [];
+    private List<Risk> _risks = [];
+    private List<Issue> _issues = [];
+    private string _userName = "";
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _userName = user.Identity?.Name ?? "Guest";
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var appUser = await UserManager.FindByNameAsync(_userName);
+            if (appUser is not null && (appUser.Role == AppRole.Admin || appUser.Role == AppRole.ProjectManager))
+            {
+                _projects = await ProjectSvc.GetAllAsync();
+            }
+            else if (appUser is not null)
+            {
+                _projects = await ProjectSvc.GetByUserAsync(appUser.Id);
+            }
+
+            _risks = await RiskSvc.GetAllAsync();
+            _issues = await IssueSvc.GetAllAsync();
+        }
+
+        _loading = false;
+    }
+
+    private static string GetStatusColor(ProjectStatus status) => status switch
+    {
+        ProjectStatus.NotStarted => "#a0aec0",
+        ProjectStatus.InProgress => "#3b82f6",
+        ProjectStatus.OnHold => "#f59e0b",
+        ProjectStatus.Completed => "#10b981",
+        ProjectStatus.Cancelled => "#ef4444",
+        _ => "#a0aec0"
+    };
+
+    private static string GetStatusBadge(ProjectStatus status) => status switch
+    {
+        ProjectStatus.NotStarted => "badge-not-started",
+        ProjectStatus.InProgress => "badge-in-progress",
+        ProjectStatus.OnHold => "badge-on-hold",
+        ProjectStatus.Completed => "badge-completed",
+        ProjectStatus.Cancelled => "badge-cancelled",
+        _ => ""
+    };
+
+    private static string GetHeatClass(int score) => score switch
+    {
+        <= 2 => "heat-green",
+        <= 4 => "heat-yellow",
+        <= 8 => "heat-orange",
+        <= 12 => "heat-red",
+        _ => "heat-darkred"
+    };
+
+    private static string FormatEnum<T>(T value) where T : Enum
+    {
+        return System.Text.RegularExpressions.Regex.Replace(value.ToString(), "(\\B[A-Z])", " $1");
+    }
+}

@@ -1,0 +1,113 @@
+@page "/admin/users/{UserId}/edit"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@attribute [Authorize(Roles = "Admin")]
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthState
+@inject AuditService AuditSvc
+@inject NavigationManager Navigation
+
+<PageTitle>Edit User — NPA Admin</PageTitle>
+
+@if (_user is null)
+{
+    <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+}
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-pencil"></i> Edit User</h1>
+        <a href="/admin/users" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+
+    <div class="npa-card" style="max-width:600px;">
+        <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="editUser" class="npa-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="mb-3">
+                <label class="form-label">Full Name *</label>
+                <InputText @bind-Value="_model.FullName" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" value="@_user.Email" disabled />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Role</label>
+                <InputSelect @bind-Value="_model.Role" class="form-select">
+                    @foreach (var r in Enum.GetValues<AppRole>())
+                    { <option value="@r">@r</option> }
+                </InputSelect>
+            </div>
+
+            <div class="mb-3 form-check">
+                <InputCheckbox @bind-Value="_model.IsDeleted" class="form-check-input" id="chkDeleted" />
+                <label class="form-check-label" for="chkDeleted">Deactivated (soft-deleted)</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Changes</button>
+        </EditForm>
+    </div>
+}
+
+@code {
+    [Parameter] public string UserId { get; set; } = "";
+
+    [SupplyParameterFromForm]
+    private UserModel? _model { get; set; }
+
+    private ApplicationUser? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await UserManager.FindByIdAsync(UserId);
+        if (_user is not null && _model is null)
+        {
+            _model = new UserModel
+            {
+                FullName = _user.FullName,
+                Role = _user.Role,
+                IsDeleted = _user.IsDeleted
+            };
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_user is null || _model is null) return;
+
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var currentUser = await UserManager.FindByNameAsync(authState.User.Identity?.Name ?? "");
+        if (currentUser is null) return;
+
+        var oldRole = _user.Role;
+        _user.FullName = _model.FullName;
+        _user.Role = _model.Role;
+        _user.IsDeleted = _model.IsDeleted;
+
+        await UserManager.UpdateAsync(_user);
+
+        // Update Identity role claims if changed
+        if (oldRole != _model.Role)
+        {
+            await UserManager.RemoveFromRoleAsync(_user, oldRole.ToString());
+            await UserManager.AddToRoleAsync(_user, _model.Role.ToString());
+        }
+
+        await AuditSvc.LogAsync("User", _user.Id, "Updated", currentUser.Id, currentUser.FullName,
+            newValues: new { _model.FullName, _model.Role, _model.IsDeleted });
+
+        Navigation.NavigateTo("/admin/users");
+    }
+
+    private sealed class UserModel
+    {
+        [System.ComponentModel.DataAnnotations.Required, System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string FullName { get; set; } = "";
+        public AppRole Role { get; set; }
+        public bool IsDeleted { get; set; }
+    }
+}

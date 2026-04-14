@@ -1,0 +1,59 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">
+            <svg class="brand-logo" viewBox="0 0 32 32" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+                <rect width="32" height="32" rx="6" fill="#00b4d8"/>
+                <text x="16" y="22" text-anchor="middle" fill="white" font-size="16" font-weight="bold" font-family="Arial">N</text>
+            </svg>
+            <span class="brand-text">NPA</span>
+        </a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-speedometer2 nav-icon"></i> Dashboard
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="projects">
+                <i class="bi bi-kanban nav-icon"></i> Projects
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="risks">
+                <i class="bi bi-shield-exclamation nav-icon"></i> Risks
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="issues">
+                <i class="bi bi-bug nav-icon"></i> Issues
+            </NavLink>
+        </div>
+
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <div class="nav-section-label px-3">ADMINISTRATION</div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/users">
+                        <i class="bi bi-people nav-icon"></i> Users
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/audit">
+                        <i class="bi bi-clock-history nav-icon"></i> Audit Log
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+    </nav>
+</div>
