@@ -6,14 +6,14 @@
 
 main {
     flex: 1;
-    background: #f0f2f5;
+    background: #f5f5f5;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
 
 .sidebar {
-    background: linear-gradient(180deg, #0a1f44 0%, #152a56 50%, #1c1040 100%);
+    background: linear-gradient(180deg, #2d2d2d 0%, #3a3a3a 50%, #333333 100%);
 }
 
 .top-row {
@@ -24,6 +24,12 @@ main {
     display: flex;
     align-items: center;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.bui-top-logo {
+    height: 30px;
+    margin-left: 1.5rem;
+    flex-shrink: 0;
 }
 
     .top-row ::deep a, .top-row ::deep .btn-link {

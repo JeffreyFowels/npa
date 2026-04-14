@@ -1,9 +1,9 @@
 @inject NavigationManager Navigation
-@implements IDisposable
 
 @if (_showMonkey)
 {
-    <div class="monkey-container" @key="_monkeyKey">
+    <div class="monkey-popup" @key="_monkeyKey">
+        <div class="monkey-speech">🎉 Project created!</div>
         <svg class="monkey-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
             <!-- Body -->
             <ellipse cx="60" cy="72" rx="28" ry="32" fill="#8B5E3C" />
@@ -47,18 +47,35 @@
 }
 
 <style>
-    .monkey-container {
+    .monkey-popup {
         position: fixed;
-        bottom: -10px;
+        bottom: 20px;
+        right: 20px;
         z-index: 9999;
         pointer-events: none;
-        animation: monkeyFloat 3s ease-in-out forwards;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        animation: monkeyPopup 4.5s ease-in-out forwards;
+    }
+
+    .monkey-speech {
+        background: #fff;
+        color: #333;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        margin-bottom: 0.4rem;
+        white-space: nowrap;
+        border: 2px solid #C8811A;
     }
 
     .monkey-svg {
-        width: 90px;
-        height: 90px;
-        filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.3));
+        width: 100px;
+        height: 100px;
+        filter: drop-shadow(2px 4px 8px rgba(0,0,0,0.3));
     }
 
     .monkey-wave {
@@ -71,13 +88,11 @@
         transform-origin: 40px 95px;
     }
 
-    @@keyframes monkeyFloat {
-        0%   { left: -100px; bottom: -10px; opacity: 1; transform: rotate(-5deg); }
-        20%  { bottom: 40px; transform: rotate(3deg); }
-        40%  { bottom: 15px; transform: rotate(-3deg); }
-        60%  { bottom: 35px; transform: rotate(2deg); }
-        80%  { bottom: 20px; opacity: 1; transform: rotate(-2deg); }
-        100% { left: calc(100vw + 100px); bottom: 30px; opacity: 0; transform: rotate(5deg); }
+    @@keyframes monkeyPopup {
+        0%   { transform: translateY(150%); opacity: 0; }
+        12%  { transform: translateY(0); opacity: 1; }
+        78%  { transform: translateY(0); opacity: 1; }
+        100% { transform: translateY(150%); opacity: 0; }
     }
 
     @@keyframes wave {
@@ -97,24 +112,7 @@
 
     protected override void OnInitialized()
     {
-        Navigation.LocationChanged += OnLocationChanged;
-    }
-
-    private async void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
-    {
-        _monkeyKey++;
-        _showMonkey = true;
-        await InvokeAsync(StateHasChanged);
-
-        _ = Task.Delay(3200).ContinueWith(async _ =>
-        {
-            _showMonkey = false;
-            await InvokeAsync(StateHasChanged);
-        });
-    }
-
-    public void Dispose()
-    {
-        Navigation.LocationChanged -= OnLocationChanged;
+        _showMonkey = Navigation.Uri.Contains("celebrate=1", StringComparison.OrdinalIgnoreCase);
+        if (_showMonkey) _monkeyKey++;
     }
 }

@@ -82,8 +82,8 @@
     }
 
 .nav-item ::deep a.active {
-    background: rgba(0, 180, 216, 0.2);
-    color: #00b4d8;
+    background: rgba(200, 129, 26, 0.2);
+    color: #C8811A;
     font-weight: 500;
 }
 

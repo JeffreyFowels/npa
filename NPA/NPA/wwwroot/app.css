@@ -1,17 +1,17 @@
-/* ===== BUI-Inspired NPA Theme ===== */
+/* ===== BUI Brand Theme — Grey · Orange · White ===== */
 :root {
-    --npa-primary: #0a1f44;
-    --npa-primary-light: #152a56;
-    --npa-accent: #00b4d8;
-    --npa-accent-hover: #0096b7;
+    --npa-primary: #333333;
+    --npa-primary-light: #4a4a4a;
+    --npa-accent: #C8811A;
+    --npa-accent-hover: #B0710F;
     --npa-success: #10b981;
     --npa-warning: #f59e0b;
     --npa-danger: #ef4444;
     --npa-info: #6366f1;
-    --npa-bg: #f0f2f5;
+    --npa-bg: #f5f5f5;
     --npa-surface: #ffffff;
-    --npa-text: #1a202c;
-    --npa-text-muted: #718096;
+    --npa-text: #333333;
+    --npa-text-muted: #6B7280;
     --npa-border: #e2e8f0;
 }
 
@@ -122,7 +122,7 @@ h1:focus { outline: none; }
 
 /* Progress Bar */
 .npa-progress { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
-.npa-progress-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--npa-accent), #38bdf8); transition: width 0.3s ease; }
+.npa-progress-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--npa-accent), #e8a843); transition: width 0.3s ease; }
 
 /* Risk Heat Map */
 .heat-cell { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; border-radius: 6px; color: white; }
@@ -135,18 +135,18 @@ h1:focus { outline: none; }
 /* Form styling */
 .npa-form .form-label { font-weight: 600; font-size: 0.85rem; color: var(--npa-text); }
 .npa-form .form-control, .npa-form .form-select { border-radius: 8px; border: 1px solid var(--npa-border); padding: 0.5rem 0.75rem; }
-.npa-form .form-control:focus, .npa-form .form-select:focus { border-color: var(--npa-accent); box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.15); }
+.npa-form .form-control:focus, .npa-form .form-select:focus { border-color: var(--npa-accent); box-shadow: 0 0 0 3px rgba(200, 129, 26, 0.15); }
 
 /* Login page */
-.login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0a1f44 0%, #152a56 50%, #1c1040 100%); }
+.login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 50%, #4a4a4a 100%); }
 .login-card { background: white; border-radius: 16px; padding: 2.5rem; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.login-card h2 { color: var(--npa-primary); font-weight: 700; margin-bottom: 0.25rem; }
+.login-card h2 { color: #C8811A; font-weight: 700; margin-bottom: 0.25rem; }
 .login-divider { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; color: var(--npa-text-muted); font-size: 0.85rem; }
 .login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: var(--npa-border); }
 
 /* ===== Milestone & Task spreadsheet ===== */
 .milestone-block { border: 1px solid var(--npa-border); border-radius: 10px; overflow: hidden; }
-.milestone-header { background: linear-gradient(90deg, #f59e0b22 0%, #f59e0b08 100%); padding: 0.75rem 1rem; border-bottom: 2px solid #f59e0b44; }
+.milestone-header { background: linear-gradient(90deg, #C8811A22 0%, #C8811A08 100%); padding: 0.75rem 1rem; border-bottom: 2px solid #C8811A44; }
 .milestone-header strong { font-size: 0.95rem; color: var(--npa-primary); }
 
 .task-table { font-size: 0.82rem; }
@@ -158,3 +158,17 @@ h1:focus { outline: none; }
 .badge-not-started { background: #f3f4f6; color: #6b7280; }
 .badge-on-hold { background: #fef3c7; color: #92400e; }
 .badge-cancelled { background: #fee2e2; color: #991b1b; }
+
+/* ===== Dashboard Map & Customer Section ===== */
+.customer-list { display: flex; flex-direction: column; gap: 0.85rem; max-height: 380px; overflow-y: auto; }
+.customer-row { padding: 0.5rem 0; border-bottom: 1px solid var(--npa-border); }
+.customer-row:last-child { border-bottom: none; }
+.customer-name { font-weight: 600; font-size: 0.85rem; color: var(--npa-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; display: inline-block; }
+.customer-count { font-size: 0.78rem; color: var(--npa-text-muted); white-space: nowrap; }
+.customer-meta { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.15rem; }
+.customer-meta .badge-status { font-size: 0.68rem; padding: 0.15rem 0.5rem; }
+
+.country-chip { background: var(--npa-surface); border: 1px solid var(--npa-border); border-radius: 10px; padding: 0.6rem 0.5rem; text-align: center; transition: box-shadow 0.2s ease; }
+.country-chip:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.country-chip-count { font-size: 1.4rem; font-weight: 700; color: var(--npa-accent); line-height: 1.2; }
+.country-chip-name { font-size: 0.72rem; color: var(--npa-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

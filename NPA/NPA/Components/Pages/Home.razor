@@ -1,5 +1,5 @@
 ﻿@page "/"
-@attribute [StreamRendering]
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
@@ -8,6 +8,7 @@
 @inject IssueService IssueSvc
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthState
+@inject IJSRuntime JS
 
 <PageTitle>Dashboard — NPA</PageTitle>
 
@@ -119,6 +120,83 @@ else
         </div>
     </div>
 
+    <!-- Project Map & Customer Breakdown -->
+    <div class="row g-3 mb-4">
+        <!-- GeoChart: Projects by Country -->
+        <div class="col-lg-8">
+            <div class="npa-card">
+                <h6 class="mb-3"><i class="bi bi-globe-americas"></i> Projects by Country</h6>
+                @if (_countryGroups.Count > 0)
+                {
+                    <div id="project-geochart" style="width:100%;min-height:360px;"></div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-geo-alt" style="font-size:2rem;opacity:0.4;"></i>
+                        <p class="mt-2">No country data available yet</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Customer Breakdown -->
+        <div class="col-lg-4">
+            <div class="npa-card">
+                <h6 class="mb-3"><i class="bi bi-building"></i> Projects by Customer</h6>
+                @if (_customerGroups.Count > 0)
+                {
+                    <div class="customer-list">
+                        @foreach (var c in _customerGroups.Take(8))
+                        {
+                            var pct = _projects.Count > 0 ? (int)(c.Total * 100.0 / _projects.Count) : 0;
+                            <div class="customer-row">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="customer-name" title="@c.Customer">@c.Customer</span>
+                                    <span class="customer-count">@c.Total project@(c.Total != 1 ? "s" : "")</span>
+                                </div>
+                                <div class="npa-progress mb-1">
+                                    <div class="npa-progress-bar" style="width:@pct%"></div>
+                                </div>
+                                <div class="customer-meta">
+                                    @if (c.Active > 0) { <span class="badge-status badge-in-progress">@c.Active Active</span> }
+                                    @if (c.Completed > 0) { <span class="badge-status badge-completed">@c.Completed Done</span> }
+                                    @if (c.AtRisk > 0) { <span class="badge-status badge-on-hold">@c.AtRisk On Hold</span> }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-building" style="font-size:2rem;opacity:0.4;"></i>
+                        <p class="mt-2">No customer data yet</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Country Summary Cards -->
+    @if (_countryGroups.Count > 0)
+    {
+        <div class="npa-card mb-4">
+            <h6 class="mb-3"><i class="bi bi-pin-map"></i> Country Breakdown</h6>
+            <div class="row g-2">
+                @foreach (var cg in _countryGroups.OrderByDescending(c => c.Count))
+                {
+                    <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                        <div class="country-chip">
+                            <div class="country-chip-count">@cg.Count</div>
+                            <div class="country-chip-name" title="@cg.Country">@cg.Country</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
     <!-- Recent Projects -->
     <div class="npa-card mb-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -164,6 +242,10 @@ else
     private List<Issue> _issues = [];
     private string _userName = "";
     private bool _loading = true;
+    private bool _mapRendered;
+
+    private List<CountryGroup> _countryGroups = [];
+    private List<CustomerGroup> _customerGroups = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -185,9 +267,39 @@ else
 
             _risks = await RiskSvc.GetAllAsync();
             _issues = await IssueSvc.GetAllAsync();
+
+            _countryGroups = _projects
+                .Where(p => !string.IsNullOrWhiteSpace(p.Country))
+                .GroupBy(p => p.Country)
+                .Select(g => new CountryGroup(g.Key, g.Count()))
+                .ToList();
+
+            _customerGroups = _projects
+                .Where(p => !string.IsNullOrWhiteSpace(p.Customer))
+                .GroupBy(p => p.Customer)
+                .Select(g => new CustomerGroup(
+                    g.Key,
+                    g.Count(),
+                    g.Count(p => p.Status == ProjectStatus.InProgress),
+                    g.Count(p => p.Status == ProjectStatus.Completed),
+                    g.Count(p => p.Status == ProjectStatus.OnHold)))
+                .OrderByDescending(c => c.Total)
+                .ToList();
         }
 
         _loading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_mapRendered && _countryGroups.Count > 0)
+        {
+            _mapRendered = true;
+            var data = _countryGroups
+                .Select(c => new object[] { c.Country, c.Count })
+                .ToArray();
+            await JS.InvokeVoidAsync("drawProjectGeoChart", (object)data);
+        }
     }
 
     private static string GetStatusColor(ProjectStatus status) => status switch
@@ -223,4 +335,7 @@ else
     {
         return System.Text.RegularExpressions.Regex.Replace(value.ToString(), "(\\B[A-Z])", " $1");
     }
+
+    private sealed record CountryGroup(string Country, int Count);
+    private sealed record CustomerGroup(string Customer, int Total, int Active, int Completed, int AtRisk);
 }

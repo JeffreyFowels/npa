@@ -110,7 +110,7 @@
         };
 
         await ProjectSvc.CreateAsync(project, appUser.Id, appUser.FullName);
-        Navigation.NavigateTo($"/projects/{project.Id}");
+        Navigation.NavigateTo($"/projects/{project.Id}?celebrate=1");
     }
 
     private sealed class ProjectModel

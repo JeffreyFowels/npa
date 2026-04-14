@@ -1,5 +1,5 @@
 @page "/projects/{Id:int}"
-@attribute [StreamRendering]
+@rendermode InteractiveServer
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @attribute [Authorize]
@@ -57,7 +57,7 @@ else
             @if (_canManage)
             {
                 <div class="d-flex gap-2 align-items-end">
-                    <input type="text" class="form-control form-control-sm" placeholder="New milestone name..." @bind="_newMilestoneName" style="width:220px;" />
+                    <input type="text" class="form-control form-control-sm" placeholder="New milestone name..." @bind="_newMilestoneName" @bind:event="oninput" style="width:220px;" />
                     <button class="btn btn-sm btn-primary" @onclick="AddMilestone" disabled="@string.IsNullOrWhiteSpace(_newMilestoneName)"><i class="bi bi-plus-lg"></i> Add Milestone</button>
                 </div>
             }
@@ -139,7 +139,7 @@ else
                     {
                         <div class="d-flex gap-2 mt-2">
                             <input type="text" class="form-control form-control-sm" placeholder="New task name..."
-                                   @bind="_newTaskNames[milestone.Id]" style="width:250px;" />
+                                   @bind="_newTaskNames[milestone.Id]" @bind:event="oninput" style="width:250px;" />
                             <button class="btn btn-sm btn-outline-primary" @onclick="() => AddTask(milestone.Id)"
                                     disabled="@(!_newTaskNames.ContainsKey(milestone.Id) || string.IsNullOrWhiteSpace(_newTaskNames[milestone.Id]))">
                                 <i class="bi bi-plus"></i> Add Task
