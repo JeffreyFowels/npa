@@ -34,44 +34,152 @@ else
         </div>
     </div>
 
-    <!-- Project Info -->
-    <div class="row g-3 mb-4">
-        <div class="col-lg-8">
-            <div class="npa-card">
-                <h6>Description</h6>
-                <p class="text-muted">@(string.IsNullOrEmpty(_project.Description) ? "No description." : _project.Description)</p>
-                <div class="row g-3 mt-2">
-                    <div class="col-sm-4"><strong>Progress</strong><div class="npa-progress mt-1"><div class="npa-progress-bar" style="width:@(_project.PercentComplete)%"></div></div><small>@_project.PercentComplete%</small></div>
-                    <div class="col-sm-4"><strong>Start</strong><br/><span class="text-muted">@(_project.StartDate?.ToString("dd MMM yyyy") ?? "—")</span></div>
-                    <div class="col-sm-4"><strong>End</strong><br/><span class="text-muted">@(_project.EndDate?.ToString("dd MMM yyyy") ?? "—")</span></div>
-                </div>
-            </div>
+    <!-- PROJECT DETAILS HEADER -->
+    <div class="npa-card mb-4">
+        <h6 class="mb-3" style="color:var(--npa-primary);"><i class="bi bi-info-circle"></i> Project Details</h6>
+        <div class="row g-3">
+            <div class="col-md-4"><strong>Customer</strong><br/><span class="text-muted">@(string.IsNullOrEmpty(_project.Customer) ? "—" : _project.Customer)</span></div>
+            <div class="col-md-4"><strong>PO Number</strong><br/><span class="text-muted">@(string.IsNullOrEmpty(_project.PONumber) ? "—" : _project.PONumber)</span></div>
+            <div class="col-md-4"><strong>Country</strong><br/><span class="text-muted">@(string.IsNullOrEmpty(_project.Country) ? "—" : _project.Country)</span></div>
         </div>
-        <div class="col-lg-4">
+        <div class="row g-3 mt-2">
+            <div class="col-md-3"><strong>Progress</strong><div class="npa-progress mt-1"><div class="npa-progress-bar" style="width:@(_project.PercentComplete)%"></div></div><small>@_project.PercentComplete%</small></div>
+            <div class="col-md-3"><strong>Start</strong><br/><span class="text-muted">@(_project.StartDate?.ToString("dd MMM yyyy") ?? "—")</span></div>
+            <div class="col-md-3"><strong>End</strong><br/><span class="text-muted">@(_project.EndDate?.ToString("dd MMM yyyy") ?? "—")</span></div>
+            <div class="col-md-3"><strong>Description</strong><br/><span class="text-muted">@(string.IsNullOrEmpty(_project.Description) ? "—" : _project.Description)</span></div>
+        </div>
+    </div>
+
+    <!-- MILESTONES & TASKS (Excel-style) -->
+    <div class="npa-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0" style="color:var(--npa-primary);"><i class="bi bi-list-task"></i> Milestones & Tasks</h6>
+            @if (_canManage)
+            {
+                <div class="d-flex gap-2 align-items-end">
+                    <input type="text" class="form-control form-control-sm" placeholder="New milestone name..." @bind="_newMilestoneName" style="width:220px;" />
+                    <button class="btn btn-sm btn-primary" @onclick="AddMilestone" disabled="@string.IsNullOrWhiteSpace(_newMilestoneName)"><i class="bi bi-plus-lg"></i> Add Milestone</button>
+                </div>
+            }
+        </div>
+
+        @if (!_project.Milestones.Any())
+        {
+            <p class="text-muted">No milestones yet. Add a milestone to start tracking tasks.</p>
+        }
+        else
+        {
+            @foreach (var milestone in _project.Milestones.OrderBy(m => m.SortOrder))
+            {
+                <div class="milestone-block mb-4">
+                    <div class="milestone-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-flag-fill" style="color:var(--npa-warning);"></i>
+                            <strong>@milestone.Name</strong>
+                            <small class="text-muted">(@milestone.Tasks.Count tasks — @($"{milestone.AverageProgress:F0}")% avg)</small>
+                        </div>
+                        @if (_canManage)
+                        {
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteMilestone(milestone.Id)" title="Delete milestone"><i class="bi bi-trash"></i></button>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="npa-table task-table">
+                            <thead>
+                                <tr>
+                                    <th style="min-width:200px;">Task Name</th>
+                                    <th style="min-width:150px;">Additional Detail</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>% Complete</th>
+                                    <th>Consultant</th>
+                                    <th style="min-width:200px;">Comment</th>
+                                    <th>Last Comment</th>
+                                    <th>Timeline</th>
+                                    <th>Output</th>
+                                    <th>Completion</th>
+                                    @if (_canManage) { <th></th> }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var task in milestone.Tasks.OrderBy(t => t.SortOrder))
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@task.TaskName</td>
+                                        <td><small>@task.AdditionalDetail</small></td>
+                                        <td><span class="priority-dot @task.Priority.ToString().ToLower()"></span>@task.Priority</td>
+                                        <td><span class="badge-status @GetTaskStatusBadge(task.Status)">@FormatEnum(task.Status)</span></td>
+                                        <td>
+                                            <div class="npa-progress" style="width:80px;"><div class="npa-progress-bar" style="width:@(task.PercentComplete)%"></div></div>
+                                            <small>@task.PercentComplete%</small>
+                                        </td>
+                                        <td>@(task.Consultant?.FullName ?? "—")</td>
+                                        <td><small class="text-muted">@(string.IsNullOrEmpty(task.Comment) ? "—" : task.Comment)</small></td>
+                                        <td>@(task.LastCommentDate?.ToString("yyyyMMdd") ?? "—")</td>
+                                        <td>@(string.IsNullOrEmpty(task.Timeline) ? "—" : task.Timeline)</td>
+                                        <td>@(string.IsNullOrEmpty(task.Output) ? "—" : task.Output)</td>
+                                        <td>@(task.CompletionDate?.ToString("dd MMM yyyy") ?? "—")</td>
+                                        @if (_canManage)
+                                        {
+                                            <td>
+                                                <a href="/projects/@Id/tasks/@task.Id/edit" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTask(task.Id)"><i class="bi bi-trash"></i></button>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (_canManage)
+                    {
+                        <div class="d-flex gap-2 mt-2">
+                            <input type="text" class="form-control form-control-sm" placeholder="New task name..."
+                                   @bind="_newTaskNames[milestone.Id]" style="width:250px;" />
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => AddTask(milestone.Id)"
+                                    disabled="@(!_newTaskNames.ContainsKey(milestone.Id) || string.IsNullOrWhiteSpace(_newTaskNames[milestone.Id]))">
+                                <i class="bi bi-plus"></i> Add Task
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+
+    <!-- Team Members -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-12">
             <div class="npa-card">
-                <h6>Team Members</h6>
+                <h6><i class="bi bi-people"></i> Team Members</h6>
                 @if (!_project.Assignments.Any())
                 {
                     <p class="text-muted mb-0">No members assigned.</p>
                 }
                 else
                 {
-                    @foreach (var a in _project.Assignments)
-                    {
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <i class="bi bi-person-circle text-muted"></i>
-                            <span>@(a.User?.FullName ?? a.UserId)</span>
-                            @if (_canManage)
-                            {
-                                <button class="btn btn-sm btn-outline-danger ms-auto" @onclick="() => Unassign(a.UserId)"><i class="bi bi-x"></i></button>
-                            }
-                        </div>
-                    }
+                    <div class="d-flex flex-wrap gap-3">
+                        @foreach (var a in _project.Assignments)
+                        {
+                            <div class="d-flex align-items-center gap-2 border rounded px-3 py-2">
+                                <i class="bi bi-person-circle text-muted"></i>
+                                <span>@(a.User?.FullName ?? a.UserId)</span>
+                                @if (_canManage)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger ms-2" @onclick="() => Unassign(a.UserId)"><i class="bi bi-x"></i></button>
+                                }
+                            </div>
+                        }
+                    </div>
                 }
                 @if (_canManage)
                 {
                     <hr/>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2" style="max-width:400px;">
                         <select class="form-select form-select-sm" @bind="_selectedUserId">
                             <option value="">Select user...</option>
                             @foreach (var u in _allUsers.Where(u => !_project.Assignments.Any(a => a.UserId == u.Id)))
@@ -165,8 +273,15 @@ else
     private string _selectedUserId = "";
     private bool _canManage;
     private ApplicationUser? _currentUser;
+    private string _newMilestoneName = "";
+    private Dictionary<int, string> _newTaskNames = [];
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadProject();
+    }
+
+    private async Task LoadProject()
     {
         _project = await ProjectSvc.GetByIdAsync(Id);
         if (_project is null) return;
@@ -180,6 +295,45 @@ else
 
         if (_canManage)
             _allUsers = UserManager.Users.Where(u => !u.IsDeleted).ToList();
+
+        // Initialize task name inputs for each milestone
+        foreach (var m in _project.Milestones)
+        {
+            _newTaskNames.TryAdd(m.Id, "");
+        }
+    }
+
+    private async Task AddMilestone()
+    {
+        if (string.IsNullOrWhiteSpace(_newMilestoneName) || _currentUser is null) return;
+        await ProjectSvc.AddMilestoneAsync(Id, _newMilestoneName.Trim(), _currentUser.Id, _currentUser.FullName);
+        _newMilestoneName = "";
+        await LoadProject();
+    }
+
+    private async Task DeleteMilestone(int milestoneId)
+    {
+        if (_currentUser is null) return;
+        await ProjectSvc.DeleteMilestoneAsync(milestoneId, _currentUser.Id, _currentUser.FullName);
+        await LoadProject();
+    }
+
+    private async Task AddTask(int milestoneId)
+    {
+        if (_currentUser is null || !_newTaskNames.TryGetValue(milestoneId, out var name) || string.IsNullOrWhiteSpace(name)) return;
+        var task = new ProjectTask { MilestoneId = milestoneId, TaskName = name.Trim() };
+        await ProjectSvc.AddTaskAsync(task, _currentUser.Id, _currentUser.FullName);
+        _newTaskNames[milestoneId] = "";
+        await ProjectSvc.RecalculateProgressAsync(Id);
+        await LoadProject();
+    }
+
+    private async Task DeleteTask(int taskId)
+    {
+        if (_currentUser is null) return;
+        await ProjectSvc.DeleteTaskAsync(taskId, _currentUser.Id, _currentUser.FullName);
+        await ProjectSvc.RecalculateProgressAsync(Id);
+        await LoadProject();
     }
 
     private async Task AssignUser()
@@ -198,6 +352,7 @@ else
     }
 
     private static string GetStatusBadge(ProjectStatus s) => s switch { ProjectStatus.NotStarted => "badge-not-started", ProjectStatus.InProgress => "badge-in-progress", ProjectStatus.OnHold => "badge-on-hold", ProjectStatus.Completed => "badge-completed", ProjectStatus.Cancelled => "badge-cancelled", _ => "" };
+    private static string GetTaskStatusBadge(Data.Models.TaskStatus s) => s switch { Data.Models.TaskStatus.NotStarted => "badge-not-started", Data.Models.TaskStatus.InProgress => "badge-in-progress", Data.Models.TaskStatus.Complete => "badge-completed", Data.Models.TaskStatus.OnHold => "badge-on-hold", Data.Models.TaskStatus.Cancelled => "badge-cancelled", _ => "" };
     private static string GetRiskStatusBadge(RiskStatus s) => s switch { RiskStatus.Identified => "badge-identified", RiskStatus.Assessing => "badge-assessing", RiskStatus.Mitigating => "badge-mitigating", RiskStatus.Resolved => "badge-resolved", RiskStatus.Accepted => "badge-accepted", _ => "" };
     private static string GetIssueBadge(IssueStatus s) => s switch { IssueStatus.Open => "badge-open", IssueStatus.InProgress => "badge-in-progress", IssueStatus.Resolved => "badge-resolved", IssueStatus.Closed => "badge-closed", _ => "" };
     private static string GetSeverityBadge(IssueSeverity s) => s switch { IssueSeverity.Low => "badge-low", IssueSeverity.Medium => "badge-medium", IssueSeverity.High => "badge-high", IssueSeverity.Critical => "badge-critical", _ => "" };

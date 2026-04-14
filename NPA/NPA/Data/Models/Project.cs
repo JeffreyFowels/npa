@@ -12,6 +12,15 @@ public class Project
     [MaxLength(2000)]
     public string Description { get; set; } = string.Empty;
 
+    [MaxLength(100)]
+    public string PONumber { get; set; } = string.Empty;
+
+    [MaxLength(200)]
+    public string Customer { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string Country { get; set; } = string.Empty;
+
     public ProjectStatus Status { get; set; } = ProjectStatus.NotStarted;
     public Priority Priority { get; set; } = Priority.Medium;
 
@@ -30,4 +39,5 @@ public class Project
     public ICollection<ProjectAssignment> Assignments { get; set; } = [];
     public ICollection<Risk> Risks { get; set; } = [];
     public ICollection<Issue> Issues { get; set; } = [];
+    public ICollection<Milestone> Milestones { get; set; } = [];
 }

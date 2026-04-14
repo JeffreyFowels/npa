@@ -44,6 +44,15 @@ public enum RiskImpact
     Severe
 }
 
+public enum TaskStatus
+{
+    NotStarted,
+    InProgress,
+    Complete,
+    OnHold,
+    Cancelled
+}
+
 public enum IssueStatus
 {
     Open,

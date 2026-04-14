@@ -38,10 +38,11 @@ else
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Customer</th>
+                        <th>PO Number</th>
                         <th>Status</th>
                         <th>Priority</th>
                         <th>Progress</th>
-                        <th>Assigned</th>
                         <th>Start</th>
                         <th>End</th>
                         <th></th>
@@ -52,13 +53,14 @@ else
                     {
                         <tr>
                             <td><a href="/projects/@p.Id" class="fw-semibold">@p.Name</a></td>
+                            <td>@(string.IsNullOrEmpty(p.Customer) ? "—" : p.Customer)</td>
+                            <td>@(string.IsNullOrEmpty(p.PONumber) ? "—" : p.PONumber)</td>
                             <td><span class="badge-status @GetStatusBadge(p.Status)">@FormatEnum(p.Status)</span></td>
                             <td><span class="priority-dot @p.Priority.ToString().ToLower()"></span>@p.Priority</td>
                             <td style="min-width:120px;">
                                 <div class="npa-progress"><div class="npa-progress-bar" style="width:@(p.PercentComplete)%"></div></div>
                                 <small class="text-muted">@p.PercentComplete%</small>
                             </td>
-                            <td>@p.Assignments.Count</td>
                             <td>@(p.StartDate?.ToString("dd MMM yyyy") ?? "—")</td>
                             <td>@(p.EndDate?.ToString("dd MMM yyyy") ?? "—")</td>
                             <td>

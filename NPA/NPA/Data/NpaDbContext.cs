@@ -10,6 +10,8 @@ public class NpaDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectAssignment> ProjectAssignments => Set<ProjectAssignment>();
+    public DbSet<Milestone> Milestones => Set<Milestone>();
+    public DbSet<ProjectTask> ProjectTasks => Set<ProjectTask>();
     public DbSet<Risk> Risks => Set<Risk>();
     public DbSet<Issue> Issues => Set<Issue>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -23,6 +25,8 @@ public class NpaDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted);
         builder.Entity<Risk>().HasQueryFilter(r => !r.IsDeleted);
         builder.Entity<Issue>().HasQueryFilter(i => !i.IsDeleted);
+        builder.Entity<Milestone>().HasQueryFilter(m => !m.IsDeleted);
+        builder.Entity<ProjectTask>().HasQueryFilter(t => !t.IsDeleted);
 
         // Project relationships
         builder.Entity<Project>()
@@ -47,6 +51,26 @@ public class NpaDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<ProjectAssignment>()
             .HasIndex(pa => new { pa.ProjectId, pa.UserId })
             .IsUnique();
+
+        // Milestone
+        builder.Entity<Milestone>()
+            .HasOne(m => m.Project)
+            .WithMany(p => p.Milestones)
+            .HasForeignKey(m => m.ProjectId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // ProjectTask
+        builder.Entity<ProjectTask>()
+            .HasOne(t => t.Milestone)
+            .WithMany(m => m.Tasks)
+            .HasForeignKey(t => t.MilestoneId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ProjectTask>()
+            .HasOne(t => t.Consultant)
+            .WithMany()
+            .HasForeignKey(t => t.ConsultantId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // Risk
         builder.Entity<Risk>()

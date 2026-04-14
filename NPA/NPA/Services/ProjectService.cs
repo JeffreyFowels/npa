@@ -13,6 +13,7 @@ public class ProjectService(NpaDbContext db, AuditService audit)
             .Include(p => p.Assignments).ThenInclude(a => a.User)
             .Include(p => p.Risks)
             .Include(p => p.Issues)
+            .Include(p => p.Milestones).ThenInclude(m => m.Tasks).ThenInclude(t => t.Consultant)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }
@@ -24,6 +25,7 @@ public class ProjectService(NpaDbContext db, AuditService audit)
             .Include(p => p.Assignments).ThenInclude(a => a.User)
             .Include(p => p.Risks)
             .Include(p => p.Issues)
+            .Include(p => p.Milestones).ThenInclude(m => m.Tasks).ThenInclude(t => t.Consultant)
             .Where(p => p.Assignments.Any(a => a.UserId == userId) || p.CreatedById == userId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -36,6 +38,9 @@ public class ProjectService(NpaDbContext db, AuditService audit)
             .Include(p => p.Assignments).ThenInclude(a => a.User)
             .Include(p => p.Risks)
             .Include(p => p.Issues)
+            .Include(p => p.Milestones.OrderBy(m => m.SortOrder))
+                .ThenInclude(m => m.Tasks.OrderBy(t => t.SortOrder))
+                .ThenInclude(t => t.Consultant)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
@@ -106,5 +111,99 @@ public class ProjectService(NpaDbContext db, AuditService audit)
 
         await audit.LogAsync("ProjectAssignment", projectId.ToString(), "UserUnassigned", userId, userName,
             newValues: new { ProjectId = projectId, UserId = targetUserId });
+    }
+
+    // ── Milestone CRUD ──
+
+    public async Task<Milestone> AddMilestoneAsync(int projectId, string name, string userId, string userName)
+    {
+        var maxSort = await db.Milestones.Where(m => m.ProjectId == projectId).MaxAsync(m => (int?)m.SortOrder) ?? 0;
+        var milestone = new Milestone
+        {
+            ProjectId = projectId,
+            Name = name,
+            SortOrder = maxSort + 1,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Milestones.Add(milestone);
+        await db.SaveChangesAsync();
+        await audit.LogAsync("Milestone", milestone.Id.ToString(), "Created", userId, userName,
+            newValues: new { milestone.Name, milestone.ProjectId });
+        return milestone;
+    }
+
+    public async Task UpdateMilestoneAsync(Milestone milestone, string userId, string userName)
+    {
+        db.Milestones.Update(milestone);
+        await db.SaveChangesAsync();
+        await audit.LogAsync("Milestone", milestone.Id.ToString(), "Updated", userId, userName,
+            newValues: new { milestone.Name });
+    }
+
+    public async Task DeleteMilestoneAsync(int milestoneId, string userId, string userName)
+    {
+        var milestone = await db.Milestones.FindAsync(milestoneId);
+        if (milestone is null) return;
+        milestone.IsDeleted = true;
+        await db.SaveChangesAsync();
+        await audit.LogAsync("Milestone", milestoneId.ToString(), "Deleted", userId, userName);
+    }
+
+    // ── Task CRUD ──
+
+    public async Task<ProjectTask> AddTaskAsync(ProjectTask task, string userId, string userName)
+    {
+        var maxSort = await db.ProjectTasks.Where(t => t.MilestoneId == task.MilestoneId).MaxAsync(t => (int?)t.SortOrder) ?? 0;
+        task.SortOrder = maxSort + 1;
+        task.CreatedAt = DateTime.UtcNow;
+        db.ProjectTasks.Add(task);
+        await db.SaveChangesAsync();
+        await audit.LogAsync("ProjectTask", task.Id.ToString(), "Created", userId, userName,
+            newValues: new { task.TaskName, task.MilestoneId, task.Priority, task.Status });
+        return task;
+    }
+
+    public async Task UpdateTaskAsync(ProjectTask task, string userId, string userName)
+    {
+        task.UpdatedAt = DateTime.UtcNow;
+        if (task.Status == Data.Models.TaskStatus.Complete && task.CompletionDate is null)
+            task.CompletionDate = DateTime.UtcNow;
+        db.ProjectTasks.Update(task);
+        await db.SaveChangesAsync();
+        await audit.LogAsync("ProjectTask", task.Id.ToString(), "Updated", userId, userName,
+            newValues: new { task.TaskName, task.Status, task.PercentComplete });
+    }
+
+    public async Task DeleteTaskAsync(int taskId, string userId, string userName)
+    {
+        var task = await db.ProjectTasks.FindAsync(taskId);
+        if (task is null) return;
+        task.IsDeleted = true;
+        task.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        await audit.LogAsync("ProjectTask", taskId.ToString(), "Deleted", userId, userName);
+    }
+
+    public async Task<ProjectTask?> GetTaskByIdAsync(int taskId)
+    {
+        return await db.ProjectTasks
+            .Include(t => t.Consultant)
+            .Include(t => t.Milestone)
+            .FirstOrDefaultAsync(t => t.Id == taskId);
+    }
+
+    /// <summary>Recalculate project % complete from milestone tasks.</summary>
+    public async Task RecalculateProgressAsync(int projectId)
+    {
+        var tasks = await db.ProjectTasks
+            .Where(t => t.Milestone!.ProjectId == projectId)
+            .ToListAsync();
+
+        var project = await db.Projects.FindAsync(projectId);
+        if (project is null) return;
+
+        project.PercentComplete = tasks.Count == 0 ? 0 : (int)tasks.Average(t => t.PercentComplete);
+        project.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
     }
 }

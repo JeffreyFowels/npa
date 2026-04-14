@@ -37,6 +37,25 @@ else
 
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
+                    <label class="form-label">PO Number</label>
+                    <InputText @bind-Value="_project.PONumber" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Customer</label>
+                    <InputText @bind-Value="_project.Customer" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Country</label>
+                    <InputSelect @bind-Value="_project.Country" class="form-select">
+                        <option value="">— Select Country —</option>
+                        @foreach (var c in NPA.Data.Countries.All)
+                        { <option value="@c">@c</option> }
+                    </InputSelect>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
                     <label class="form-label">Status</label>
                     <InputSelect @bind-Value="_project.Status" class="form-select">
                         @foreach (var s in Enum.GetValues<ProjectStatus>())
